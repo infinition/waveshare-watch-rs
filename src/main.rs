@@ -195,8 +195,11 @@ fn update_power_stats(
 
 #[esp_rtos::main]
 async fn main(_spawner: Spawner) {
-    // Heap: 64KB SRAM + PSRAM for large allocs
-    esp_alloc::heap_allocator!(size: 64 * 1024);
+    // Heap: 200KB SRAM + PSRAM for large allocs
+    // The BLE+WiFi coex radio stack needs ~100KB+ of internal SRAM for
+    // btdm_controller_init tasks and buffers. 64KB was too small and
+    // caused a StoreProhibited panic (null-pointer from failed alloc).
+    esp_alloc::heap_allocator!(size: 200 * 1024);
     // Power-aware: default to 160MHz instead of 240MHz.
     // Saves ~30% CPU power without noticeable impact on UI/sensor work.
     // Game code can still trigger short bursts via DMA/peripherals at 80MHz QSPI which is unchanged.
@@ -451,11 +454,19 @@ async fn main(_spawner: Spawner) {
     println!("[BLE] Connector ready (advertising OFF)");
 
     // Pre-fill STA credentials so "toggle WiFi" just flips a bit later.
+    // Falls back to empty strings if WIFI_SSID / WIFI_PASS are not set at
+    // compile time — WiFi simply won't connect but the watch boots fine.
     use esp_radio::wifi::{ModeConfig, ClientConfig, AuthMethod};
+    let wifi_ssid = option_env!("WIFI_SSID").unwrap_or("");
+    let wifi_pass = option_env!("WIFI_PASS").unwrap_or("");
+    let wifi_has_creds = !wifi_ssid.is_empty();
+    if !wifi_has_creds {
+        println!("[WIFI] No SSID configured — WiFi disabled");
+    }
     let client_config = ClientConfig::default()
-        .with_ssid(alloc::string::String::from(env!("WIFI_SSID")))
-        .with_password(alloc::string::String::from(env!("WIFI_PASS")))
-        .with_auth_method(AuthMethod::WpaWpa2Personal);
+        .with_ssid(alloc::string::String::from(wifi_ssid))
+        .with_password(alloc::string::String::from(wifi_pass))
+        .with_auth_method(if wifi_pass.is_empty() { AuthMethod::None } else { AuthMethod::WpaWpa2Personal });
     let mode_config = ModeConfig::Client(client_config);
     wifi_controller.set_config(&mode_config).expect("WiFi config failed");
     // NOTE: we do NOT call wifi_controller.start() here. The radio stays
