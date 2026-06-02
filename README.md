@@ -1,4 +1,4 @@
-# waveshare-watch-rs
+﻿# waveshare-watch-rs
 
 [![oosmetrics](https://api.oosmetrics.com/api/v1/badge/achievement/d90d81a8-b5be-4e00-8418-c1e0b9321f57.svg)](https://oosmetrics.com/repo/infinition/waveshare-watch-rs)
 
@@ -184,7 +184,7 @@ On wake via touch/button: immediate return to state 3, framebuffer forced into f
 - **RTC** polled at 1 Hz (instead of 5 Hz before optimization).
 - **Battery** polled at 1/60 Hz (1/300 Hz when the screen is off).
 - **Conditional Watchface flush**: the PSRAM FB is flushed only if `needs_render()` signals an actual change.
-- **WiFi auto-disconnect** after 5 mins of inactivity: `wifi_controller.disconnect_async()` — the 2.4 GHz radio is the biggest constant consumer. Automatic reconnect on next wake.
+- **WiFi auto-disconnect** after 5 mins of inactivity: `wifi_controller.disconnect_async()`; the 2.4 GHz radio is the biggest constant consumer. Automatic reconnect on next wake.
 - **TE VSync spin** limited to 400 iterations (instead of 2000) to avoid wasting cycles when TE doesn't pulse.
 - **Blocking delays** replaced by `Timer::after(...).await` so the CPU stays parked during button debounces.
 - **Audio PA amp** (GPIO46) held LOW at boot, codec muted (DAC power-down + HP drive off) immediately after init. The amp is pulled HIGH only while writing the beep via DMA, then pulled back down.
@@ -232,7 +232,7 @@ esp-hal SPI2 half_duplex_write(
 DMA_CH0 → GPIO SIO0..SIO3 @ 80 MHz
 ```
 
-- `swap_and_flush()`: double buffer, for games (Flappy) — zero tearing.
+- `swap_and_flush()`: double buffer, for games (Flappy); zero tearing.
 - `flush_vsync()`: single buffer, waits for a TE pulse (GPIO13) before sending pixels.
 - `flush_region(x, y, w, h)`: partial update, used by watchface partial updates.
 
@@ -325,13 +325,13 @@ On Linux: `/dev/ttyACM0` or `/dev/ttyUSB0` depending on the USB bridge.
 - **BLE**: `esp-radio` compiled with stub feature, init disabled due to a panic `btdm_controller_init -4` in coex with WiFi (requires additional `coex` config).
 - **WiFi scan list**: `ScanResult` types ready, Settings UI shows the field but without scan.
 - **USB Mass Storage**: not wired (copy-from-PC would require `usb-device` + `usbd-storage`).
-- **ESP deep sleep**: no `esp_hal::system::Sleep` — we stay in light sleep via the Embassy executor, sufficient for watch usage.
+- **ESP deep sleep**: no `esp_hal::system::Sleep`; we stay in light sleep via the Embassy executor, sufficient for watch usage.
 
 ---
 
 ## Detailed custom drivers
 
-### `drivers/qspi_bus.rs` — QspiBus
+### `drivers/qspi_bus.rs`: QspiBus
 
 Half-duplex quad-SPI bus for the CO5300. API:
 ```rust
@@ -345,7 +345,7 @@ fn end_pixels(&mut self)
 
 Uses esp-hal `Spi::half_duplex_write()` with `Command::_8Bit` + `Address::_24Bit`. `DataMode::Single` is used for commands, `DataMode::Quad` for pixels.
 
-### `drivers/co5300.rs` — Co5300Display
+### `drivers/co5300.rs`: Co5300Display
 
 Init sequence faithful to the C Arduino Waveshare driver `Arduino_CO5300.cpp`:
 - Hardware reset (10ms low, 120ms high)
@@ -361,7 +361,7 @@ Init sequence faithful to the C Arduino Waveshare driver `Arduino_CO5300.cpp`:
 
 Functions: `init`, `set_addr_window`, `set_brightness`, `display_on`, `display_off`, `bus_mut`.
 
-### `peripherals/audio.rs` — Es8311
+### `peripherals/audio.rs`: Es8311
 
 ES8311 init based on the Waveshare C driver. Critical registers missing in my first attempt:
 - `0x00 = 0x1F` (reset) → `0x00 = 0x00` → **`0x00 = 0x80`** (power-on command, initially forgotten)
@@ -372,18 +372,18 @@ ES8311 init based on the Waveshare C driver. Critical registers missing in my fi
 
 API: `init`, `mute` (DAC power-down + HP off + vol 0), `unmute`, `set_volume`.
 
-### `peripherals/power.rs` — Axp2101Power
+### `peripherals/power.rs`: Axp2101Power
 
 Wrapper around `axp2101-embedded` for battery monitoring + power rails.
 
-### `peripherals/touch.rs` — Ft3168Touch
+### `peripherals/touch.rs`: Ft3168Touch
 
 **Monitor** mode (`REG_POWER_MODE = 0x01`): the chip asserts GPIO38 only on a touch event. Internal state machine to distinguish tap / swipe up/down/left/right with:
 - minimum 30 px threshold to qualify a swipe
 - 1.5× ratio on the dominant axis to reject diagonal swipes
 - tracking start/end coordinates
 
-### `peripherals/imu.rs` — Qmi8658Imu
+### `peripherals/imu.rs`: Qmi8658Imu
 
 Init accel ±2g @ 500 Hz, gyro ±512 dps @ 119 Hz, LPF enabled.
 ```rust
@@ -393,11 +393,11 @@ fn read_temperature() -> f32    // °C
 fn power_up() / power_down()    // CTRL7 0x03 / 0x00
 ```
 
-### `peripherals/rtc.rs` — Pcf85063aRtc
+### `peripherals/rtc.rs`: Pcf85063aRtc
 
 BCD read/write of registers 0x04..0x0A. Auto conversion to `DateTime { year, month, day, hours, minutes, seconds }`.
 
-### `peripherals/http.rs` — http_get / http_post
+### `peripherals/http.rs`: http_get / http_post
 
 Minimal HTTP client without external crate: parse URL, `TcpSocket::connect`, format request manually, custom `write_all` (handling partial writes), read until close, parse status code + body truncated to 128 bytes.
 
@@ -407,13 +407,13 @@ Minimal HTTP client without external crate: parse URL, `TcpSocket::connect`, for
 
 ### On boot
 1. `esp_hal::init(CpuClock::_160MHz)`
-2. `esp_alloc::psram_allocator!` — 8 MB PSRAM heap
-3. `esp_rtos::start(timg0.timer0)` — Embassy executor
+2. `esp_alloc::psram_allocator!`: 8 MB PSRAM heap
+3. `esp_rtos::start(timg0.timer0)`: Embassy executor
 4. Sequential init of all I2C/SPI/I2S drivers
 5. `wifi_controller.connect_async().await`
 6. `embassy_net::Stack` + `StackResources<3>`, spawn `net_task` task
 7. Wait for DHCP IP
-8. `ntp_sync()` — UDP to 216.239.35.0:123, parse timestamp, `rtc.set_time()`
+8. `ntp_sync()`: UDP to 216.239.35.0:123, parse timestamp, `rtc.set_time()`
 9. Initial watchface render
 10. Enter main loop
 
@@ -493,19 +493,19 @@ The original C++ project used:
 
 Major steps of the rewrite:
 
-1. **QSPI bus + CO5300** — The hardest part: discovering that esp-hal `half_duplex_write` supports `DataMode::Quad` via the `Command` + `Address` machinery. Initial bug: using `with_miso` (input) instead of `with_sio1` (output) caused SIO1 to float → all blacks appeared green.
+1. **QSPI bus + CO5300**. The hardest part: discovering that esp-hal `half_duplex_write` supports `DataMode::Quad` via the `Command` + `Address` machinery. Initial bug: using `with_miso` (input) instead of `with_sio1` (output) caused SIO1 to float → all blacks appeared green.
 
-2. **AXP2101** — Activating the DC1 (3.3 V main) and ALDO1 (panel) rails via registers 0x80 and 0x92, otherwise the screen stays black even with the CO5300 correctly initialized.
+2. **AXP2101**. Activating the DC1 (3.3 V main) and ALDO1 (panel) rails via registers 0x80 and 0x92, otherwise the screen stays black even with the CO5300 correctly initialized.
 
-3. **PSRAM Framebuffer** — Alignment issue: the CO5300 is strict on even widths for partial writes. Added even-rounding logic in `flush_region`. The PSRAM allocator requires `features = ["psram"]` on `esp-hal` + `esp_alloc::psram_allocator!` macro after `esp_hal::init`.
+3. **PSRAM Framebuffer**. Alignment issue: the CO5300 is strict on even widths for partial writes. Added even-rounding logic in `flush_region`. The PSRAM allocator requires `features = ["psram"]` on `esp-hal` + `esp_alloc::psram_allocator!` macro after `esp_hal::init`.
 
-4. **ES8311 Audio** — 4 attempts before getting sound: the correct public method to play via I2S is **`write_dma()`** (not `write()` which is private). The init must exactly match the C sequence, particularly the `write_reg(0x00, 0x80)` after the reset, otherwise the codec stays in power-down.
+4. **ES8311 Audio**. 4 attempts before getting sound: the correct public method to play via I2S is **`write_dma()`** (not `write()` which is private). The init must exactly match the C sequence, particularly the `write_reg(0x00, 0x80)` after the reset, otherwise the codec stays in power-down.
 
-5. **Event-driven loop** — Converted from `loop { Timer::after(5ms).await; ... }` to `select3(Timer, touch_edge, button_edge)`. Gain: CPU wake-ups reduced by ~6000× in screen OFF and ~200× in idle watchface.
+5. **Event-driven loop**. Converted from `loop { Timer::after(5ms).await; ... }` to `select3(Timer, touch_edge, button_edge)`. Gain: CPU wake-ups reduced by ~6000× in screen OFF and ~200× in idle watchface.
 
-6. **BLE** — Init attempt with `esp_radio::ble::BleConnector::new` → panic `btdm_controller_init returned -4`. BLE disabled in `Cargo.toml` features pending a correct coex configuration.
+6. **BLE**. Init attempt with `esp_radio::ble::BleConnector::new` → panic `btdm_controller_init returned -4`. BLE disabled in `Cargo.toml` features pending a correct coex configuration.
 
-7. **Sleep/wake** — Initial bug: the `display_on()` sequence did DISPON then SLPOUT (incorrect order), so DISPON happened while the panel was still in SLPIN. Fixed to SLPOUT (120 ms) → DISPON (20 ms), standard MIPI DCS order.
+7. **Sleep/wake**. Initial bug: the `display_on()` sequence did DISPON then SLPOUT (incorrect order), so DISPON happened while the panel was still in SLPIN. Fixed to SLPOUT (120 ms) → DISPON (20 ms), standard MIPI DCS order.
 
 ---
 
