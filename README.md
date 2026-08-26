@@ -1,4 +1,6 @@
-<img width="278" height="271" alt="image-removebg-preview" src="https://github.com/user-attachments/assets/d12c99ad-3500-4984-ae04-29006331345e" />
+<p align="center">
+  <img src=".github/waveshare-watch-rs.png" alt="waveshare-watch-rs icon" width="278" height="271" />
+</p>
 
  # waveshare-watch-rs
 
